@@ -1,0 +1,74 @@
+image: tiangolo/docker-with-compose
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  - pip install docker-auto-labels
+
+stages:
+  - test
+  - build
+  - deploy
+
+tests:
+  stage: test
+  script:
+    - sh ./scripts/test.sh
+  tags:
+    - build
+    - test
+
+build-stag:
+  stage: build
+  script:
+    - TAG=stag FRONTEND_ENV=staging sh ./scripts/build-push.sh
+  only:
+    - master
+  tags:
+    - build
+    - test
+    
+build-prod:
+  stage: build
+  script:
+    - TAG=prod FRONTEND_ENV=production sh ./scripts/build-push.sh
+  only:
+    - production
+  tags:
+    - build
+    - test
+
+deploy-stag:
+  stage: deploy
+  script: 
+    - >
+      DOMAIN=stag.test.com
+      TRAEFIK_TAG=stag.test.com
+      STACK_NAME=stag-test-com
+      TAG=stag
+      sh ./scripts/deploy.sh
+  environment:
+    name: staging
+    url: https://stag.test.com
+  only:
+    - master
+  tags:
+    - swarm
+    - stag
+
+deploy-prod:
+  stage: deploy
+  script:
+    - >
+      DOMAIN=test.com
+      TRAEFIK_TAG=test.com
+      STACK_NAME=test-com
+      TAG=prod
+      sh ./scripts/deploy.sh
+  environment:
+    name: production
+    url: https://test.com
+  only:
+    - production
+  tags:
+    - swarm
+    - prod
